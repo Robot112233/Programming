@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 
-#python 3.0 code
+#python 3.6.2 code
 
 def pascal(jono):
 	jono1 = []
