@@ -6,6 +6,8 @@ For a positive integer n, let σ2(n) be the sum of the squares of its divisors. 
 
 sum of all n, 0 < n < 64,000,000 such that σ2(n) is a perfect square.
 """
+#python 3.6.2 code
+
 
 def square(digit):
 	square = 0
