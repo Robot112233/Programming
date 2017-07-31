@@ -4,7 +4,7 @@ The series, 1^1 + 2^2 + 3^3 + ... + 10^10 = 10405071317
 Last ten digits of any series.
 """
 
-#python 3.0 code
+#python 3.6.2 code
 
 def digits(summ):
 	table=str(summ)
