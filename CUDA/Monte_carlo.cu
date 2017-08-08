@@ -1,69 +1,58 @@
-#include<stdio.h>
-#include<stdlib.h>
 
-#define LOOP 10000000
-#define N 1
-#define X_max 5.0
-#define X_min 0.0
-#define Y_max 5.0
-#define Y_min 0.0
-//GPU CODE!
-__global__ void add(double *C_inputA, double *C_inputB, double *C_output){
-  for (int i = 0; i < LOOP; i++) {
-    C_output[0] = C_output[0]+2*C_inputA[blockIdx.x]+C_inputB[blockIdx.x];
-  }
+#include <stdlib.h>
+#include <stdio.h>
+#include <cuda.h>
+#include <time.h>
+#include <curand_kernel.h>
+
+#define Trials               1000
+#define BLOCKS               512
+#define THREADS              512
+#define Correct_value        187.5
+
+
+__global__ void gpu_monte_carlo(double *estimate, curandState *states)
+{
+    unsigned int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    double ans = 0;
+    double x, y, a, b, c, d;
+    a = c = 0;
+    b = d = 5;
+    curand_init(1234, tid, 0, &states[tid]);
+
+    for (int i = 0; i < Trials; ++i)
+    {
+        x = (a+(b-a))*curand_uniform(&states[tid]);
+        y = (c+(d-c))*curand_uniform(&states[tid]);
+        ans += (2*x+y);
+    }
+    estimate[tid] = ans*(((b-a)*(d-c)) / (double) Trials) ;
 }
 
-void var_A(double* C_inputA){
-  for (int i = 0; i < LOOP; ++i){
-    double d = rand()/(double)RAND_MAX;
-    C_inputA[i] = X_min+(X_max-X_min)*d;
-  }
-}
-void var_B(double* C_inputB){
-  for (int i = 0; i < LOOP; ++i){
-    double d = rand()/(double)RAND_MAX;
-    C_inputB[i] = Y_min+(Y_max-Y_min)*d;
-  }
-}
 
-//CPU CODE
-int main(void){
-  srand (time(0));
+int main ()
+{
+    clock_t start, stop;
+    double host[BLOCKS * THREADS];
+    double *dev;
+    curandState *devStates;
+    printf("# of trials per thread = %d, # of blocks = %d, # of threads/block = %d.\n",
+    Trials, BLOCKS, THREADS);
+    start = clock();
+    cudaMalloc((void **) &dev, BLOCKS * THREADS * sizeof(double));
+    cudaMalloc( (void **)&devStates, THREADS * BLOCKS * sizeof(curandState) );
+    gpu_monte_carlo<<<BLOCKS, THREADS>>>(dev, devStates);
+    cudaMemcpy(host, dev, BLOCKS * THREADS * sizeof(double), cudaMemcpyDeviceToHost);
+    double integral_gpu;
+    for (int i = 0; i < BLOCKS * THREADS; ++i)
+    {
+        integral_gpu += host[i];
+    }
 
-  double *C_inputA, *C_inputB, *C_output; //host copies of variables
-  double *G_inputA, *G_inputB, *G_output; //GPU copies of host variables
-  double size = LOOP*N * sizeof(double);
+    integral_gpu /= (BLOCKS * THREADS);
+    stop = clock();
+    printf("GPU 2*x+y calculated in %f s.\n", (stop-start)/(double)CLOCKS_PER_SEC);
+    printf("CUDA estimate of 2*x+y = %f [error of %f]\n", integral_gpu, integral_gpu - Correct_value);
 
-//Allocate space from GPU for host copies
-  cudaMalloc((void **) &G_inputA, size);
-  cudaMalloc((void **) &G_inputB, size);
-  cudaMalloc((void **) &G_output, size);
-
-//Allocate space for cpu copies
-  C_inputA = (double *)malloc(size); var_A(C_inputA);
-  C_inputB = (double *)malloc(size); var_B(C_inputB);
-  C_output = (double *)malloc(size);
-
-//copy input to GPU
-  cudaMemcpy(G_inputA, C_inputA, size, cudaMemcpyHostToDevice);
-  cudaMemcpy(G_inputB, C_inputB, size, cudaMemcpyHostToDevice);
-
-//GPU kernel launcher
-  add<<<N,1>>>(G_inputA, G_inputB, G_output);
-
-  //Copy result from GPU
-  cudaMemcpy(C_output, G_output, size, cudaMemcpyDeviceToHost);
-  double ans = *C_output;
-  ans = (((X_max-X_min)*(Y_max-Y_min))/LOOP)*ans;
-  printf("%e\n",ans);
-  //cleanup
-  free(C_inputA);
-  free(C_inputB);
-  free(C_output);
-  cudaFree(G_inputA);
-  cudaFree(G_inputB);
-  cudaFree(G_output);
-
-  return 0;
+    return 0;
 }
