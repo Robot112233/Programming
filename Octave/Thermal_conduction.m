@@ -1,6 +1,5 @@
 clc;
 clear all;
-%Note to self BUG IN CODE !!! T_Cold Explodes! 
 m_H2O = 20.0; %kg 
 X_Fe = 0.30; %m
 y_Fe = 0.30; %m
