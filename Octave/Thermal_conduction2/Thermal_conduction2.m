@@ -43,7 +43,7 @@ px = linspace(0, lx, nx);
 
 
 for i = 1:ny
-  if (i < ny-1/2.0)
+  if (i < (ny+1)/2.0)
     c(i, px <= raja*lx) = c_Pb;
     c(i, px > raja*lx) = c_Cu;
     T(i, px <= raja*lx) = T_Pb;
